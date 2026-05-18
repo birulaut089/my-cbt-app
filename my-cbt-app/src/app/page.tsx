@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Lock, User, LogIn, LayoutDashboard, Users, BookOpen,
-  Settings, LogOut, Clock, CheckCircle, AlertTriangle, Play, FileUp, List
+  Settings, LogOut, Clock, CheckCircle, AlertTriangle, Play, FileUp, List,
+  ChevronLeft, Plus, Edit, Trash2, FileText, CheckSquare
 } from 'lucide-react';
 
 /* --- MAIN APP COMPONENT --- */
@@ -68,7 +69,6 @@ function LoginView({ onLogin, onError }: any) {
   const handleSubmit = (e: any) => {
     e.preventDefault();
     setLoading(true);
-    // Simulasi loading API
     setTimeout(() => {
       setLoading(false);
       if (username === 'admin') onLogin({ id: 1, role: 'admin', name: 'Super Admin' });
@@ -130,63 +130,361 @@ function LoginView({ onLogin, onError }: any) {
 
 /* --- 2. ADMIN DASHBOARD --- */
 function AdminDashboard({ user, onLogout }: any) {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [masterView, setMasterView] = useState('menu'); 
+
+  const adminMenus = [
+    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18}/> },
+    { id: 'datamaster', label: 'Data Master', icon: <List size={18}/> },
+    { id: 'settings', label: 'Pengaturan', icon: <Settings size={18}/> }
+  ];
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    if (tab === 'datamaster') setMasterView('menu');
+  };
+
   return (
-    <DashboardLayout title="Dashboard Admin" user={user} onLogout={onLogout} roleColor="bg-blue-600">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <StatCard title="Total Siswa" value="1,240" icon={<Users size={24} className="text-blue-600" />} color="bg-blue-50" />
-        <StatCard title="Total Guru" value="48" icon={<User size={24} className="text-emerald-600" />} color="bg-emerald-50" />
-        <StatCard title="Ujian Aktif" value="3" icon={<Play size={24} className="text-purple-600" />} color="bg-purple-50" />
+    <DashboardLayout title="Dashboard Admin" user={user} onLogout={onLogout} roleColor="bg-blue-600" activeTab={activeTab} onTabChange={handleTabChange} menuItems={adminMenus}>
+      
+      {activeTab === 'dashboard' && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <StatCard title="Total Siswa" value="1,240" icon={<Users size={24} className="text-blue-600" />} color="bg-blue-50" />
+            <StatCard title="Total Guru" value="48" icon={<User size={24} className="text-blue-600" />} color="bg-blue-50" />
+            <StatCard title="Ujian Aktif" value="3" icon={<Play size={24} className="text-blue-600" />} color="bg-blue-50" />
+          </div>
+
+          <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
+            <h3 className="font-bold text-lg mb-6 flex items-center gap-2"><Clock size={20}/> Aktivitas Terbaru</h3>
+            <div className="space-y-4">
+              {[1,2,3].map(i => (
+                <div key={i} className="flex items-center justify-between p-4 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all cursor-default">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">G</div>
+                    <div>
+                      <p className="font-semibold text-slate-800">Guru Matematika mengupload soal baru</p>
+                      <p className="text-sm text-slate-500">Ujian Tengah Semester - Kelas XII</p>
+                    </div>
+                  </div>
+                  <span className="text-sm text-slate-400">2 jam yang lalu</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {activeTab === 'datamaster' && (
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 min-h-[400px]">
+          {masterView === 'menu' && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+              <h3 className="font-bold text-xl mb-2 text-slate-800">Manajemen Data Master</h3>
+              <p className="text-slate-500 mb-8">Pilih entitas data yang ingin Anda kelola pada sistem CBT.</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button onClick={() => setMasterView('guru')} className="flex flex-col items-start p-6 border-2 border-slate-100 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition-all group">
+                  <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <User size={24} />
+                  </div>
+                  <h4 className="font-bold text-lg text-slate-800">Data Guru</h4>
+                  <p className="text-sm text-slate-500 text-left mt-1">Tambah, edit, atau hapus akses akun Guru.</p>
+                </button>
+
+                <button onClick={() => setMasterView('siswa')} className="flex flex-col items-start p-6 border-2 border-slate-100 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition-all group">
+                  <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Users size={24} />
+                  </div>
+                  <h4 className="font-bold text-lg text-slate-800">Data Siswa</h4>
+                  <p className="text-sm text-slate-500 text-left mt-1">Kelola data peserta ujian dan reset password.</p>
+                </button>
+              </div>
+            </motion.div>
+          )}
+          {masterView === 'guru' && <DataMasterTable type="Guru" onBack={() => setMasterView('menu')} />}
+          {masterView === 'siswa' && <DataMasterTable type="Siswa" onBack={() => setMasterView('menu')} />}
+        </div>
+      )}
+
+      {activeTab === 'settings' && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 min-h-[400px] max-w-3xl">
+           <div className="flex items-center gap-3 mb-6">
+             <div className="p-3 bg-blue-100 text-blue-600 rounded-xl"><Settings size={24}/></div>
+             <div>
+                <h3 className="font-bold text-xl text-slate-800">Pengaturan Sistem</h3>
+                <p className="text-sm text-slate-500">Konfigurasi umum aplikasi Darul Ulum CBT.</p>
+             </div>
+           </div>
+
+           <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); alert('Pengaturan berhasil disimpan!'); }}>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Tahun Ajaran Aktif</label>
+                <input 
+                  type="text" 
+                  defaultValue="2024/2025 Genap" 
+                  placeholder="Misal: 2025/2026 Ganjil" 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Pengumuman Dashboard Siswa</label>
+                <textarea rows={3} className="w-full bg-slate-50 border border-slate-200 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700" placeholder="Ketik pengumuman di sini..."></textarea>
+                <p className="text-xs text-slate-400 mt-1">Teks ini akan muncul di halaman awal portal ujian siswa.</p>
+              </div>
+              <div className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                <div>
+                  <h4 className="font-semibold text-slate-800">Akses Portal Ujian</h4>
+                  <p className="text-sm text-slate-500">Izinkan siswa untuk login dan mengakses soal ujian saat ini.</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" className="sr-only peer" defaultChecked />
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+              <div className="pt-4 border-t border-slate-100 flex justify-end">
+                <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-xl transition-colors shadow-lg shadow-blue-500/30">
+                  Simpan Pengaturan
+                </button>
+              </div>
+           </form>
+        </motion.div>
+      )}
+
+    </DashboardLayout>
+  );
+}
+
+/* --- TABEL DATA MASTER (REUSABLE) --- */
+function DataMasterTable({ type, onBack }: any) {
+  const isGuru = type === 'Guru';
+  const [isAdding, setIsAdding] = useState(false);
+
+  if (isAdding) {
+    return (
+      <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+        <div className="flex items-center gap-4 mb-6 pb-4 border-b border-slate-100">
+          <button onClick={() => setIsAdding(false)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors">
+            <ChevronLeft size={20} />
+          </button>
+          <h3 className="font-bold text-xl text-slate-800">Tambah Data {type}</h3>
+        </div>
+        <form className="max-w-2xl space-y-4" onSubmit={(e) => { e.preventDefault(); alert('Siap disimpan ke database!'); setIsAdding(false); }}>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Nama Lengkap</label>
+              <input type="text" required className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{isGuru ? 'NIP / Username' : 'NIS / Username'}</label>
+              <input type="text" required className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+              <input type="password" required className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{isGuru ? 'Mata Pelajaran' : 'Kelas'}</label>
+              <input type="text" required className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          </div>
+          <div className="pt-4 flex gap-3">
+            <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors">Simpan Data</button>
+            <button type="button" onClick={() => setIsAdding(false)} className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2 px-6 rounded-lg transition-colors">Batal</button>
+          </div>
+        </form>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-600">
+            <ChevronLeft size={20} />
+          </button>
+          <h3 className="font-bold text-xl text-slate-800">Manajemen Data {type}</h3>
+        </div>
+        <button onClick={() => setIsAdding(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-colors">
+          <Plus size={18} /> Tambah {type}
+        </button>
       </div>
 
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
-        <h3 className="font-bold text-lg mb-6 flex items-center gap-2"><Clock size={20}/> Aktivitas Terbaru</h3>
-        <div className="space-y-4">
-          {[1,2,3].map(i => (
-            <div key={i} className="flex items-center justify-between p-4 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all cursor-default">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">G</div>
-                <div>
-                  <p className="font-semibold text-slate-800">Guru Matematika mengupload soal baru</p>
-                  <p className="text-sm text-slate-500">Ujian Tengah Semester - Kelas XII</p>
-                </div>
-              </div>
-              <span className="text-sm text-slate-400">2 jam yang lalu</span>
-            </div>
-          ))}
-        </div>
+      <div className="overflow-x-auto border border-slate-100 rounded-xl">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-slate-50 text-slate-500 text-sm border-b border-slate-100">
+              <th className="p-4 font-medium">No</th>
+              <th className="p-4 font-medium">Nama {type}</th>
+              <th className="p-4 font-medium">{isGuru ? 'NIP/Username' : 'NIS/Username'}</th>
+              <th className="p-4 font-medium">{isGuru ? 'Mata Pelajaran' : 'Kelas'}</th>
+              <th className="p-4 font-medium text-center">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+              <td className="p-4 text-slate-600">1</td>
+              <td className="p-4 font-medium text-slate-800">{isGuru ? 'Bapak Budi' : 'Andi Pratama'}</td>
+              <td className="p-4 text-slate-600 font-mono text-sm">{isGuru ? 'guru' : 'siswa'}</td>
+              <td className="p-4 text-slate-600">{isGuru ? 'Matematika' : 'XII IPA 1'}</td>
+              <td className="p-4 flex justify-center gap-2">
+                <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit size={16}/></button>
+                <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16}/></button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-    </DashboardLayout>
+    </motion.div>
   );
 }
 
 /* --- 3. GURU DASHBOARD --- */
 function GuruDashboard({ user, onLogout }: any) {
-  return (
-    <DashboardLayout title="Workspace Guru" user={user} onLogout={onLogout} roleColor="bg-emerald-500">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
-          <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center mb-6">
-            <FileUp className="text-indigo-600" size={24} />
-          </div>
-          <h2 className="text-2xl font-bold text-slate-800 mb-2">Buat Ujian Baru</h2>
-          <p className="text-slate-500 mb-8 leading-relaxed">
-            Upload soal format Excel/Word atau buat secara manual dengan mudah. Sistem akan otomatis memparsing soal Anda.
-          </p>
-          <button className="bg-indigo-50 text-indigo-700 font-semibold py-3 px-6 rounded-xl w-full flex justify-center items-center gap-2 hover:bg-indigo-100 transition-colors">
-            <FileUp size={20}/> Upload Excel Soal
-          </button>
-        </div>
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [inputMode, setInputMode] = useState('upload'); // 'upload' or 'manual'
 
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-center">
-          <h3 className="font-bold text-lg mb-4 text-slate-700 flex items-center gap-2"><Lock size={20}/> Token Aktif (Simulasi)</h3>
-          <div className="text-5xl font-black text-slate-800 tracking-widest bg-slate-50 p-6 rounded-2xl text-center border-2 border-dashed border-slate-200">
-            X7Y9ZA
+  const guruMenus = [
+    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18}/> },
+    { id: 'buat_ujian', label: 'Buat Ujian & Soal', icon: <FileUp size={18}/> },
+    { id: 'hasil', label: 'Hasil Ujian', icon: <CheckSquare size={18}/> }
+  ];
+
+  return (
+    <DashboardLayout title="Workspace Guru" user={user} onLogout={onLogout} roleColor="bg-emerald-500" activeTab={activeTab} onTabChange={setActiveTab} menuItems={guruMenus}>
+      
+      {activeTab === 'dashboard' && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+            <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mb-6">
+              <FileUp className="text-emerald-600" size={24} />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-800 mb-2">Persiapan Ujian</h2>
+            <p className="text-slate-500 mb-8 leading-relaxed">
+              Silakan menuju menu "Buat Ujian & Soal" untuk mengupload soal format Excel/Word atau membuat soal secara manual.
+            </p>
+            <button onClick={() => setActiveTab('buat_ujian')} className="bg-emerald-50 text-emerald-700 font-semibold py-3 px-6 rounded-xl w-full flex justify-center items-center gap-2 hover:bg-emerald-100 transition-colors">
+              Mulai Buat Ujian Baru
+            </button>
           </div>
-          <button className="mt-6 w-full bg-slate-900 text-white py-3 rounded-xl font-medium hover:bg-slate-800 transition-colors">
-            Generate Ulang Token
-          </button>
-        </div>
-      </div>
+
+          <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-center">
+            <h3 className="font-bold text-lg mb-4 text-slate-700 flex items-center gap-2"><Lock size={20}/> Ujian Aktif (Token)</h3>
+            <p className="text-sm text-slate-500 mb-4">Berikan token ini kepada siswa agar mereka bisa masuk ke sesi ujian Anda.</p>
+            <div className="text-5xl font-black text-slate-800 tracking-widest bg-slate-50 p-6 rounded-2xl text-center border-2 border-dashed border-slate-200">
+              X7Y9ZA
+            </div>
+            <button className="mt-6 w-full bg-slate-900 text-white py-3 rounded-xl font-medium hover:bg-slate-800 transition-colors">
+              Reset Token Acak
+            </button>
+          </div>
+        </motion.div>
+      )}
+
+      {activeTab === 'buat_ujian' && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 min-h-[400px]">
+          <h3 className="font-bold text-2xl mb-6 text-slate-800">Manajemen Ujian & Soal</h3>
+          
+          <div className="flex gap-6 border-b border-slate-200 mb-8">
+             <button 
+                onClick={() => setInputMode('upload')}
+                className={`pb-3 font-medium transition-colors border-b-2 ${inputMode === 'upload' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+             >
+                Upload Excel / Word
+             </button>
+             <button 
+                onClick={() => setInputMode('manual')}
+                className={`pb-3 font-medium transition-colors border-b-2 ${inputMode === 'manual' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+             >
+                Input Manual
+             </button>
+          </div>
+          
+          {inputMode === 'upload' && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-2xl">
+               <div className="border-2 border-dashed border-slate-300 rounded-2xl p-10 text-center hover:bg-slate-50 transition-colors bg-white">
+                  <FileUp size={48} className="mx-auto text-emerald-400 mb-4" />
+                  <p className="text-slate-700 font-medium text-lg mb-2">Tarik & lepas file soal di sini</p>
+                  <p className="text-slate-500 text-sm mb-6">Format didukung: .xlsx, .xls, .docx</p>
+                  <label className="bg-emerald-100 text-emerald-700 px-6 py-3 rounded-xl font-semibold cursor-pointer hover:bg-emerald-200 transition-colors inline-block shadow-sm">
+                     Pilih File Dokumen
+                     <input type="file" className="hidden" accept=".xlsx,.xls,.docx" />
+                  </label>
+                  <div className="mt-6 flex justify-center gap-4 text-sm">
+                    <a href="#" className="text-emerald-600 hover:underline flex items-center gap-1"><FileText size={16}/> Template Excel</a>
+                    <a href="#" className="text-blue-600 hover:underline flex items-center gap-1"><FileText size={16}/> Template Word</a>
+                  </div>
+               </div>
+               
+               <form className="mt-8 space-y-5 bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                  <h4 className="font-bold text-slate-700 mb-4 flex items-center gap-2"><Settings size={18}/> Pengaturan Sesi Ujian</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                     <div>
+                       <label className="block text-sm font-medium text-slate-600 mb-1">Nama Ujian / Mapel</label>
+                       <input type="text" className="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-emerald-500" placeholder="Misal: UAS Matematika" />
+                     </div>
+                     <div>
+                       <label className="block text-sm font-medium text-slate-600 mb-1">Durasi Pengerjaan (Menit)</label>
+                       <input type="number" className="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-emerald-500" placeholder="90" defaultValue="90" />
+                     </div>
+                  </div>
+                  <div className="flex gap-6 pt-2">
+                    <label className="flex items-center gap-2 text-sm text-slate-700 font-medium cursor-pointer">
+                      <input type="checkbox" className="w-4 h-4 rounded text-emerald-600 cursor-pointer" defaultChecked /> Acak Urutan Soal
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-slate-700 font-medium cursor-pointer">
+                      <input type="checkbox" className="w-4 h-4 rounded text-emerald-600 cursor-pointer" defaultChecked /> Acak Urutan Jawaban (A-E)
+                    </label>
+                  </div>
+                  <button type="button" onClick={() => alert('File sedang di-parsing dan Ujian dibuat!')} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl mt-4 transition-colors shadow-lg shadow-emerald-500/30">
+                    Simpan & Generate Token Baru
+                  </button>
+               </form>
+            </motion.div>
+          )}
+
+          {inputMode === 'manual' && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-3xl">
+              <div className="bg-blue-50 border border-blue-200 text-blue-700 p-4 rounded-xl mb-6 flex gap-3 text-sm">
+                <AlertTriangle size={20} className="shrink-0" />
+                <p>Fitur input manual cocok untuk merevisi atau menambahkan soal dalam jumlah sedikit. Untuk jumlah soal yang banyak, sangat disarankan menggunakan fitur <strong>Upload Excel/Word</strong>.</p>
+              </div>
+
+              <form className="space-y-6">
+                 <div>
+                   <label className="block text-sm font-bold text-slate-700 mb-2">Pertanyaan Soal</label>
+                   <textarea rows={4} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 focus:ring-2 focus:ring-emerald-500 text-slate-700" placeholder="Ketik pertanyaan di sini..."></textarea>
+                 </div>
+                 
+                 <div className="space-y-3">
+                   <label className="block text-sm font-bold text-slate-700">Pilihan Jawaban (Tandai yang benar)</label>
+                   {['A', 'B', 'C', 'D', 'E'].map((opt, idx) => (
+                     <div key={opt} className="flex items-center gap-3">
+                       <input type="radio" name="correct_answer" className="w-5 h-5 text-emerald-600" defaultChecked={idx===0} />
+                       <span className="font-bold text-slate-500 w-6">{opt}.</span>
+                       <input type="text" className="flex-1 bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 focus:ring-2 focus:ring-emerald-500" placeholder={`Opsi ${opt}`} />
+                     </div>
+                   ))}
+                 </div>
+                 
+                 <div className="pt-6 border-t border-slate-100 flex gap-3">
+                    <button type="button" className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-6 rounded-lg transition-colors">Simpan Soal Ini</button>
+                    <button type="button" className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2 px-6 rounded-lg transition-colors">Bersihkan Form</button>
+                 </div>
+              </form>
+            </motion.div>
+          )}
+
+        </motion.div>
+      )}
+
+      {activeTab === 'hasil' && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 min-h-[400px]">
+          <h3 className="font-bold text-xl mb-4 text-slate-800">Rekapitulasi Hasil Ujian</h3>
+          <p className="text-slate-500">Fitur untuk melihat dan mengunduh (Excel/PDF) nilai siswa akan muncul di sini.</p>
+        </motion.div>
+      )}
+
     </DashboardLayout>
   );
 }
@@ -194,11 +492,19 @@ function GuruDashboard({ user, onLogout }: any) {
 /* --- 4. SISWA DASHBOARD --- */
 function SiswaDashboard({ user, onLogout, onStartExam }: any) {
   const [token, setToken] = useState('');
+  const [activeTab, setActiveTab] = useState('dashboard');
+
+  const siswaMenus = [
+    { id: 'dashboard', label: 'Ruang Ujian', icon: <Play size={18}/> },
+    { id: 'riwayat', label: 'Riwayat Nilai', icon: <Clock size={18}/> }
+  ];
 
   return (
-    <DashboardLayout title="Portal Siswa" user={user} onLogout={onLogout} roleColor="bg-amber-500">
-       <div className="max-w-2xl mx-auto mt-10">
-         <div className="bg-white p-10 rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 text-center relative overflow-hidden">
+    <DashboardLayout title="Portal Siswa" user={user} onLogout={onLogout} roleColor="bg-amber-500" activeTab={activeTab} onTabChange={setActiveTab} menuItems={siswaMenus}>
+      
+      {activeTab === 'dashboard' && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto mt-10">
+          <div className="bg-white p-10 rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 text-center relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-teal-500"></div>
             
             <div className="w-20 h-20 bg-emerald-50 rounded-full mx-auto flex items-center justify-center mb-6">
@@ -224,8 +530,17 @@ function SiswaDashboard({ user, onLogout, onStartExam }: any) {
             >
               <LogIn size={20} /> Masuk Kelas Ujian
             </button>
-         </div>
-       </div>
+          </div>
+        </motion.div>
+      )}
+
+      {activeTab === 'riwayat' && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 min-h-[400px]">
+          <h3 className="font-bold text-xl mb-4 text-slate-800">Riwayat Ujian Anda</h3>
+          <p className="text-slate-500">Anda belum pernah mengikuti ujian apapun pada semester ini.</p>
+        </motion.div>
+      )}
+
     </DashboardLayout>
   );
 }
@@ -244,7 +559,6 @@ function ExamEngine({ user, onFinish }: any) {
 
   // Timer & Security Effect
   useEffect(() => {
-    // Mencegah klik kanan (anti-inspect sederhana)
     const preventContextMenu = (e: any) => e.preventDefault();
     document.addEventListener('contextmenu', preventContextMenu);
 
@@ -252,7 +566,7 @@ function ExamEngine({ user, onFinish }: any) {
       setTimeLeft((prev) => {
         if (prev <= 1) { 
           clearInterval(timer); 
-          onFinish(); // Auto submit jika waktu habis
+          onFinish(); 
           return 0; 
         }
         return prev - 1;
@@ -403,7 +717,14 @@ function ExamEngine({ user, onFinish }: any) {
 }
 
 /* --- REUSABLE COMPONENTS --- */
-function DashboardLayout({ children, title, user, onLogout, roleColor }: any) {
+function DashboardLayout({ children, title, user, onLogout, roleColor, activeTab = 'dashboard', onTabChange, menuItems = [] }: any) {
+  
+  const getNavClass = (tabId: string) => {
+    return activeTab === tabId
+      ? "flex items-center gap-3 px-4 py-3 rounded-xl bg-white/10 text-white font-medium cursor-pointer"
+      : "flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white transition-colors cursor-pointer";
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex">
       {/* Sidebar */}
@@ -416,9 +737,11 @@ function DashboardLayout({ children, title, user, onLogout, roleColor }: any) {
         </div>
 
         <nav className="flex-1 space-y-2">
-          <a href="#" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/10 text-white font-medium"><LayoutDashboard size={18}/> Dashboard</a>
-          <a href="#" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 transition-colors"><List size={18}/> Data Master</a>
-          <a href="#" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 transition-colors"><Settings size={18}/> Pengaturan</a>
+          {menuItems.map((menu: any) => (
+             <div key={menu.id} onClick={() => onTabChange && onTabChange(menu.id)} className={getNavClass(menu.id)}>
+                {menu.icon} {menu.label}
+             </div>
+          ))}
         </nav>
 
         <div className="pt-6 border-t border-white/10 mt-auto">
@@ -442,9 +765,7 @@ function DashboardLayout({ children, title, user, onLogout, roleColor }: any) {
           <button onClick={onLogout} className="md:hidden text-slate-500"><LogOut/></button>
         </header>
         <div className="p-8">
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-            {children}
-          </motion.div>
+          {children}
         </div>
       </main>
     </div>
