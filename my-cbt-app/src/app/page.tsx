@@ -175,6 +175,7 @@ function AdminDashboard({ user, onLogout, onShowToast }: any) {
 function GuruDashboard({ user, onLogout, onShowToast }: any) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [inputMode, setInputMode] = useState('upload');
+  const [activeToken, setActiveToken] = useState('ABC123'); // State untuk menyimpan Token Aktif
 
   const guruMenus = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18}/> },
@@ -182,19 +183,45 @@ function GuruDashboard({ user, onLogout, onShowToast }: any) {
     { id: 'hasil', label: 'Hasil Ujian', icon: <CheckSquare size={18}/> }
   ];
 
+  // Fungsi untuk membuat Token acak (6 Karakter Huruf & Angka)
+  const generateNewToken = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let newToken = '';
+    for (let i = 0; i < 6; i++) {
+      newToken += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setActiveToken(newToken);
+    onShowToast(`Token berhasil diperbarui: ${newToken}`);
+    // Di aplikasi nyata, kode ini juga mengirim 'newToken' ke Spreadsheet agar tersimpan
+  };
+
   return (
     <DashboardLayout title="Workspace Guru" user={user} onLogout={onLogout} roleColor="bg-emerald-500" activeTab={activeTab} onTabChange={setActiveTab} menuItems={guruMenus}>
       {activeTab === 'dashboard' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white p-8 rounded-3xl border shadow-sm">
             <h2 className="text-2xl font-bold mb-4">Selamat Datang</h2>
-            <p className="text-slate-500 mb-6">Silakan buat paket soal baru melalui menu di samping.</p>
-            <button onClick={()=>setActiveTab('buat_ujian')} className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold">Mulai Sekarang</button>
+            <p className="text-slate-500 mb-6">Silakan buat paket soal baru melalui menu di samping atau klik tombol di bawah.</p>
+            <button 
+              onClick={() => setActiveTab('buat_ujian')} 
+              className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
+            >
+              Mulai Buat Ujian
+            </button>
           </div>
-          <div className="bg-white p-8 rounded-3xl border shadow-sm text-center">
+          
+          <div className="bg-white p-8 rounded-3xl border shadow-sm text-center flex flex-col justify-center items-center">
             <p className="text-sm font-bold text-slate-400 mb-2">TOKEN UJIAN AKTIF</p>
-            <div className="text-5xl font-black tracking-widest text-indigo-600 mb-4">ABC123</div>
-            <button className="text-emerald-600 font-bold border border-emerald-600 px-4 py-2 rounded-lg">Ganti Token</button>
+            <div className="text-5xl font-black tracking-widest text-indigo-600 mb-6 bg-indigo-50 px-8 py-4 rounded-2xl border-2 border-dashed border-indigo-200">
+              {activeToken}
+            </div>
+            <button 
+              onClick={generateNewToken} 
+              className="text-emerald-600 font-bold border-2 border-emerald-600 px-6 py-2 rounded-xl hover:bg-emerald-50 transition-colors"
+            >
+              Ganti Token Acak
+            </button>
+            <p className="text-xs text-slate-400 mt-4">Bagikan token ini ke siswa agar mereka bisa mengerjakan soal Anda.</p>
           </div>
         </div>
       )}
@@ -213,11 +240,18 @@ function GuruDashboard({ user, onLogout, onShowToast }: any) {
                 <p className="font-bold text-lg">Pilih file Excel (.xlsx) atau Word (.docx)</p>
                 <input type="file" className="mt-4" onChange={()=>onShowToast('File terpilih, silakan simpan')} />
               </div>
-              <button onClick={()=>onShowToast('Soal dari file berhasil disimpan ke Spreadsheet')} className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-bold shadow-lg">Upload & Simpan Soal</button>
+              <button onClick={()=>onShowToast('Soal dari file berhasil disimpan ke Spreadsheet')} className="w-full bg-emerald-600 hover:bg-emerald-700 transition-colors text-white py-4 rounded-2xl font-bold shadow-lg">Upload & Simpan Soal</button>
             </div>
           ) : (
             <ManualQuestionForm onShowToast={onShowToast} />
           )}
+        </div>
+      )}
+
+      {activeTab === 'hasil' && (
+        <div className="bg-white p-8 rounded-3xl border shadow-sm min-h-[400px]">
+          <h2 className="text-2xl font-bold mb-4">Hasil Ujian Siswa</h2>
+          <p className="text-slate-500">Nilai dan jawaban siswa yang menggunakan token Anda akan muncul di sini.</p>
         </div>
       )}
     </DashboardLayout>
@@ -245,7 +279,7 @@ function DataMasterAction({ type, onBack, onShowToast }: any) {
         setIsAdding(false);
         setForm({ nama:'', username:'', password:'', detail:'' });
       }
-    } catch(err) { onShowToast('Gagal terhubung ke GAS', 'error'); }
+    } catch(err) { onShowToast('Gagal terhubung ke GAS. Pastikan URL sudah diisi.', 'error'); }
     finally { setLoading(false); }
   };
 
@@ -262,8 +296,8 @@ function DataMasterAction({ type, onBack, onShowToast }: any) {
           <input type="password" required placeholder="Password" className="p-3 bg-slate-50 border rounded-xl" value={form.password} onChange={e=>setForm({...form, password:e.target.value})} />
           <input type="text" required placeholder={type==='Guru'?'Mata Pelajaran':'Kelas'} className="p-3 bg-slate-50 border rounded-xl" value={form.detail} onChange={e=>setForm({...form, detail:e.target.value})} />
         </div>
-        <button type="submit" disabled={loading} className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold">
-          {loading ? 'Proses...' : 'Simpan ke Spreadsheet'}
+        <button type="submit" disabled={loading} className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold disabled:opacity-50">
+          {loading ? 'Menyimpan...' : 'Simpan ke Spreadsheet'}
         </button>
       </form>
     </div>
@@ -276,7 +310,7 @@ function DataMasterAction({ type, onBack, onShowToast }: any) {
           <button onClick={onBack}><ChevronLeft/></button>
           <h3 className="text-xl font-bold">Manajemen {type}</h3>
         </div>
-        <button onClick={()=>setIsAdding(true)} className="bg-indigo-600 text-white px-5 py-2 rounded-xl flex items-center gap-2"><Plus size={18}/> Tambah {type}</button>
+        <button onClick={()=>setIsAdding(true)} className="bg-indigo-600 text-white px-5 py-2 rounded-xl flex items-center gap-2 hover:bg-indigo-700 transition-colors"><Plus size={18}/> Tambah {type}</button>
       </div>
       <div className="p-12 text-center border-2 border-dashed rounded-3xl text-slate-400">Data tabel akan dimuat otomatis dari Spreadsheet</div>
     </div>
@@ -302,7 +336,7 @@ function ManualQuestionForm({ onShowToast }: any) {
         onShowToast('Soal berhasil disimpan ke Database!');
         setQ({ pertanyaan:'', a:'', b:'', c:'', d:'', e:'', jawaban:'a' });
       }
-    } catch(err) { onShowToast('Gagal Simpan', 'error'); }
+    } catch(err) { onShowToast('Gagal Simpan. Pastikan URL GAS sudah diisi.', 'error'); }
     finally { setLoading(false); }
   };
 
@@ -311,14 +345,14 @@ function ManualQuestionForm({ onShowToast }: any) {
       <textarea required placeholder="Tulis Pertanyaan..." className="w-full p-4 bg-slate-50 border rounded-2xl h-32" value={q.pertanyaan} onChange={e=>setQ({...q, pertanyaan:e.target.value})} />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
         {['a','b','c','d','e'].map(l => (
-          <div key={l} className="flex items-center gap-2 p-2 bg-slate-50 rounded-xl border">
-            <input type="radio" name="jawaban" checked={q.jawaban===l} onChange={()=>setQ({...q, jawaban:l})} />
+          <div key={l} className="flex items-center gap-2 p-2 bg-slate-50 rounded-xl border focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition-all">
+            <input type="radio" name="jawaban" checked={q.jawaban===l} onChange={()=>setQ({...q, jawaban:l})} className="text-emerald-600" />
             <span className="uppercase font-bold text-slate-400 w-4">{l}.</span>
-            <input type="text" placeholder={`Opsi ${l.toUpperCase()}`} className="bg-transparent outline-none w-full" value={(q as any)[l]} onChange={e=>setQ({...q, [l]:e.target.value})} />
+            <input type="text" required placeholder={`Opsi ${l.toUpperCase()}`} className="bg-transparent outline-none w-full" value={(q as any)[l]} onChange={e=>setQ({...q, [l]:e.target.value})} />
           </div>
         ))}
       </div>
-      <button type="submit" disabled={loading} className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-bold shadow-lg">
+      <button type="submit" disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-700 transition-colors text-white py-4 rounded-2xl font-bold shadow-lg disabled:opacity-50">
         {loading ? 'Menyimpan...' : 'Simpan Soal Sekarang'}
       </button>
     </form>
@@ -368,22 +402,45 @@ function StatCard({ title, value, icon, color }: any) {
 
 /* DUMMY ENGINE & SISWA (Simplified) */
 function SiswaDashboard({ onLogout, onStartExam }: any) {
+  const [tokenInput, setTokenInput] = useState('');
+
   return (
     <div className="max-w-md mx-auto mt-20 p-10 bg-white border rounded-3xl shadow-xl text-center">
       <Play className="mx-auto text-emerald-500 mb-4" size={48} />
-      <h2 className="text-2xl font-bold mb-4">Ujian Matematika</h2>
-      <input type="text" placeholder="Masukkan Token" className="w-full p-4 border rounded-xl mb-4 text-center font-bold tracking-widest" />
-      <button onClick={onStartExam} className="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold">Mulai Ujian</button>
+      <h2 className="text-2xl font-bold mb-2">Masuk Kelas Ujian</h2>
+      <p className="text-slate-500 text-sm mb-8">Ketik token yang diberikan guru Anda di bawah ini.</p>
+      
+      <input 
+        type="text" 
+        value={tokenInput}
+        onChange={(e) => setTokenInput(e.target.value.toUpperCase())}
+        placeholder="MASUKKAN TOKEN" 
+        maxLength={6}
+        className="w-full p-4 border-2 border-slate-200 rounded-xl mb-6 text-center font-black tracking-widest text-2xl uppercase focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 outline-none transition-all" 
+      />
+      
+      <button 
+        onClick={onStartExam} 
+        disabled={tokenInput.length < 5}
+        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-xl font-bold shadow-lg disabled:opacity-50 transition-colors"
+      >
+        Verifikasi & Mulai Ujian
+      </button>
     </div>
   );
 }
 
 function ExamEngine({ onFinish }: any) {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-10 text-center">
-      <h1 className="text-4xl font-bold mb-4">Halaman Ujian Aktif</h1>
-      <p className="mb-8">Simulasi sedang berjalan...</p>
-      <button onClick={onFinish} className="bg-red-500 text-white px-8 py-3 rounded-xl font-bold">Selesai Ujian</button>
+    <div className="min-h-screen flex flex-col items-center justify-center p-10 text-center bg-slate-50">
+      <div className="bg-white p-12 rounded-3xl shadow-lg border border-slate-100 max-w-lg w-full">
+        <Clock className="mx-auto text-indigo-500 mb-6 animate-pulse" size={64} />
+        <h1 className="text-3xl font-black text-slate-800 mb-4">Halaman Ujian Aktif</h1>
+        <p className="text-slate-500 mb-10 leading-relaxed">Simulasi mesin ujian sedang berjalan. Sistem mendeteksi aktivitas Anda.</p>
+        <button onClick={onFinish} className="w-full bg-red-500 hover:bg-red-600 transition-colors text-white px-8 py-4 rounded-xl font-bold shadow-lg shadow-red-500/30">
+          Selesai & Kumpulkan Jawaban
+        </button>
+      </div>
     </div>
   );
 }
