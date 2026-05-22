@@ -5,11 +5,30 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Lock, User, LogIn, LayoutDashboard, Users, BookOpen,
   Settings, LogOut, Clock, CheckCircle, AlertTriangle, Play, FileUp, List,
-  ChevronLeft, Plus, Edit, Trash2, FileText, CheckSquare, UploadCloud
+  ChevronLeft, Plus, CheckSquare, UploadCloud, Database, Save, FileText
 } from 'lucide-react';
 
-/* --- KONFIGURASI URL BACKEND --- */
 const GAS_URL = "https://script.google.com/macros/s/AKfycbyUGtn7HpP4a5ex9XBxv0KaRVXgslKEKwtQLQLvpSCXCThK9XdSbkR5fR3q0hDbOgeRrQ/exec";
+
+function DataTable({ data, headers }: { data: any[][], headers: string[] }) {
+  if (!data || data.length === 0) return <div className="p-8 text-center text-slate-500 bg-white rounded-xl shadow border border-slate-200">Sedang memuat atau tiada data...</div>;
+  return (
+    <div className="overflow-x-auto bg-white rounded-xl shadow border border-slate-200">
+      <table className="w-full text-left">
+        <thead className="bg-slate-50 border-b border-slate-200">
+          <tr>{headers.map((h, i) => <th key={i} className="p-4 font-semibold text-slate-700 whitespace-nowrap">{h}</th>)}</tr>
+        </thead>
+        <tbody>
+          {data.map((row, i) => (
+            <tr key={i} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+              {headers.map((_, j) => <td key={j} className="p-4 text-slate-600">{String(row[j] || '-')}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 export default function CBTApp() {
   const [currentView, setCurrentView] = useState('login');
@@ -23,424 +42,293 @@ export default function CBTApp() {
 
   const handleLogin = (user: any) => {
     setCurrentUser(user);
-    if (user.role === 'admin') setCurrentView('admin');
-    else if (user.role === 'guru') setCurrentView('guru');
-    else setCurrentView('siswa');
+    setCurrentView(String(user.role).toLowerCase().trim()); 
     showToast(`Selamat datang, ${user.name}!`);
   };
 
-  const handleLogout = () => {
-    setCurrentUser(null);
-    setCurrentView('login');
-  };
-
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
       <AnimatePresence>
         {toast && (
-          <motion.div
-            initial={{ opacity: 0, y: -50 }} animate={{ opacity: 1, y: 20 }} exit={{ opacity: 0, y: -50 }}
-            className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-xl text-white font-medium flex items-center gap-2 ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}
-          >
-            {toast.type === 'error' ? <AlertTriangle size={20} /> : <CheckCircle size={20} />}
-            {toast.message}
+          <motion.div initial={{ opacity: 0, y: -50 }} animate={{ opacity: 1, y: 20 }} exit={{ opacity: 0, y: -50 }} className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-xl text-white font-medium flex items-center gap-2 ${toast.type === 'error' ? 'bg-red-500' : 'bg-emerald-500'}`}>
+            {toast.type === 'error' ? <AlertTriangle size={20} /> : <CheckCircle size={20} />} {toast.message}
           </motion.div>
         )}
       </AnimatePresence>
 
       <AnimatePresence mode="wait">
         {currentView === 'login' && <LoginView key="login" onLogin={handleLogin} onError={showToast} />}
-        {currentView === 'admin' && <AdminDashboard key="admin" user={currentUser} onLogout={handleLogout} onShowToast={showToast} />}
-        {currentView === 'guru' && <GuruDashboard key="guru" user={currentUser} onLogout={handleLogout} onShowToast={showToast} />}
-        {currentView === 'siswa' && <SiswaDashboard key="siswa" user={currentUser} onLogout={handleLogout} onStartExam={() => setCurrentView('exam')} />}
-        {currentView === 'exam' && <ExamEngine key="exam" user={currentUser} onFinish={() => { setCurrentView('siswa'); showToast("Ujian Selesai."); }} />}
+        {currentView === 'admin' && <AdminDashboard key="admin" user={currentUser} onLogout={() => setCurrentView('login')} onShowToast={showToast} />}
+        {currentView === 'guru' && <GuruDashboard key="guru" user={currentUser} onLogout={() => setCurrentView('login')} onShowToast={showToast} />}
+        {currentView === 'siswa' && <SiswaDashboard key="siswa" user={currentUser} onLogout={() => setCurrentView('login')} />}
       </AnimatePresence>
     </div>
   );
 }
 
-/* 1. LOGIN VIEW */
 function LoginView({ onLogin, onError }: any) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [form, setForm] = useState({ username: '', password: '' });
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: any) => {
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      if (username === 'admin') onLogin({ id: 1, role: 'admin', name: 'Super Admin' });
-      else if (username === 'guru') onLogin({ id: 2, role: 'guru', name: 'Bapak Budi' });
-      else if (username === 'siswa') onLogin({ id: 3, role: 'siswa', name: 'Andi Pratama' });
-      else onError('Gunakan: admin / guru / siswa', 'error');
-    }, 800);
+    try {
+      const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'login', ...form }) });
+      const data = await res.json();
+      if (data.status === 'success') onLogin(data.user);
+      else onError(data.message, 'error');
+    } catch { onError('Gagal terhubung ke database', 'error'); }
+    setLoading(false);
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 p-4">
-      <div className="w-full max-w-md bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-3xl shadow-2xl">
-        <div className="text-center mb-8">
-          <div className="bg-gradient-to-tr from-indigo-500 to-purple-500 w-16 h-16 rounded-2xl mx-auto flex items-center justify-center mb-4"><BookOpen className="text-white" size={32} /></div>
-          <h1 className="text-3xl font-bold text-white mb-2">Darul Ulum CBT</h1>
-          <p className="text-indigo-200">Modern Assessment Platform</p>
-        </div>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-h-screen flex items-center justify-center bg-slate-900 p-4">
+      <div className="w-full max-w-md bg-white p-8 rounded-3xl shadow-2xl">
+        <h1 className="text-3xl font-bold text-slate-800 text-center mb-8">Login CBT</h1>
         <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="relative">
-            <User className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-300" size={20} />
-            <input type="text" required value={username} onChange={e => setUsername(e.target.value)} placeholder="Username" className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
-          </div>
-          <div className="relative">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-300" size={20} />
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
-          </div>
-          <button disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-lg transition-all flex justify-center items-center gap-2">
-            {loading ? <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><LogIn size={20} /> Masuk Sistem</>}
-          </button>
+          <input type="text" required placeholder="Username" className="w-full border rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-indigo-500" onChange={e => setForm({...form, username: e.target.value})} />
+          <input type="password" required placeholder="Password" className="w-full border rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-indigo-500" onChange={e => setForm({...form, password: e.target.value})} />
+          <button disabled={loading} className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-colors">{loading ? 'Memeriksa...' : 'Masuk'}</button>
         </form>
       </div>
     </motion.div>
   );
 }
 
-/* 2. ADMIN DASHBOARD */
-function AdminDashboard({ user, onLogout, onShowToast }: any) {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [masterView, setMasterView] = useState('menu');
-
-  const adminMenus = [
-    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18}/> },
-    { id: 'datamaster', label: 'Data Master', icon: <List size={18}/> },
-    { id: 'settings', label: 'Pengaturan', icon: <Settings size={18}/> }
-  ];
-
-  return (
-    <DashboardLayout title="Dashboard Admin" user={user} onLogout={onLogout} roleColor="bg-blue-600" activeTab={activeTab} onTabChange={(t:any)=>{setActiveTab(t); setMasterView('menu')}} menuItems={adminMenus}>
-      {activeTab === 'dashboard' && (
-        <div className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <StatCard title="Total Siswa" value="1,240" icon={<Users size={24}/>} color="bg-blue-50 text-blue-600" />
-            <StatCard title="Total Guru" value="48" icon={<User size={24}/>} color="bg-emerald-50 text-emerald-600" />
-            <StatCard title="Ujian Aktif" value="3" icon={<Play size={24}/>} color="bg-purple-50 text-purple-600" />
-          </div>
-          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-            <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Clock size={20}/> Aktivitas Sistem</h3>
-            <div className="space-y-4">
-              {[1,2].map(i => (
-                <div key={i} className="p-4 rounded-xl bg-slate-50 border border-slate-100">Server berjalan normal • {new Date().toLocaleDateString()}</div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'datamaster' && (
-        <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm min-h-[500px]">
-          {masterView === 'menu' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <button onClick={()=>setMasterView('guru')} className="p-8 border-2 border-slate-100 rounded-3xl hover:border-indigo-500 hover:bg-indigo-50 transition-all text-left">
-                <div className="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mb-4"><User size={28}/></div>
-                <h4 className="text-xl font-bold">Data Guru</h4>
-                <p className="text-slate-500">Kelola akun pengajar Darul Ulum.</p>
-              </button>
-              <button onClick={()=>setMasterView('siswa')} className="p-8 border-2 border-slate-100 rounded-3xl hover:border-indigo-500 hover:bg-indigo-50 transition-all text-left">
-                <div className="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mb-4"><Users size={28}/></div>
-                <h4 className="text-xl font-bold">Data Siswa</h4>
-                <p className="text-slate-500">Kelola database peserta ujian.</p>
-              </button>
-            </div>
-          ) : (
-            <DataMasterAction type={masterView === 'guru' ? 'Guru' : 'Siswa'} onBack={()=>setMasterView('menu')} onShowToast={onShowToast} />
-          )}
-        </div>
-      )}
-
-      {activeTab === 'settings' && (
-        <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm max-w-2xl">
-          <h3 className="text-xl font-bold mb-6">Pengaturan Global</h3>
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium mb-1">Tahun Ajaran Aktif</label>
-              <input type="text" defaultValue="2024/2025 Genap" className="w-full p-3 bg-slate-50 border rounded-xl" />
-            </div>
-            <button onClick={()=>onShowToast('Pengaturan disimpan')} className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold">Simpan Perubahan</button>
-          </div>
-        </div>
-      )}
-    </DashboardLayout>
-  );
-}
-
-/* 3. GURU DASHBOARD */
-function GuruDashboard({ user, onLogout, onShowToast }: any) {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [inputMode, setInputMode] = useState('upload');
-  const [activeToken, setActiveToken] = useState('ABC123'); // State untuk menyimpan Token Aktif
-
-  const guruMenus = [
-    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18}/> },
-    { id: 'buat_ujian', label: 'Buat Ujian & Soal', icon: <FileUp size={18}/> },
-    { id: 'hasil', label: 'Hasil Ujian', icon: <CheckSquare size={18}/> }
-  ];
-
-  // Fungsi untuk membuat Token acak (6 Karakter Huruf & Angka)
-  const generateNewToken = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let newToken = '';
-    for (let i = 0; i < 6; i++) {
-      newToken += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setActiveToken(newToken);
-    onShowToast(`Token berhasil diperbarui: ${newToken}`);
-    // Di aplikasi nyata, kode ini juga mengirim 'newToken' ke Spreadsheet agar tersimpan
-  };
-
-  return (
-    <DashboardLayout title="Workspace Guru" user={user} onLogout={onLogout} roleColor="bg-emerald-500" activeTab={activeTab} onTabChange={setActiveTab} menuItems={guruMenus}>
-      {activeTab === 'dashboard' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white p-8 rounded-3xl border shadow-sm">
-            <h2 className="text-2xl font-bold mb-4">Selamat Datang</h2>
-            <p className="text-slate-500 mb-6">Silakan buat paket soal baru melalui menu di samping atau klik tombol di bawah.</p>
-            <button 
-              onClick={() => setActiveTab('buat_ujian')} 
-              className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
-            >
-              Mulai Buat Ujian
-            </button>
-          </div>
-          
-          <div className="bg-white p-8 rounded-3xl border shadow-sm text-center flex flex-col justify-center items-center">
-            <p className="text-sm font-bold text-slate-400 mb-2">TOKEN UJIAN AKTIF</p>
-            <div className="text-5xl font-black tracking-widest text-indigo-600 mb-6 bg-indigo-50 px-8 py-4 rounded-2xl border-2 border-dashed border-indigo-200">
-              {activeToken}
-            </div>
-            <button 
-              onClick={generateNewToken} 
-              className="text-emerald-600 font-bold border-2 border-emerald-600 px-6 py-2 rounded-xl hover:bg-emerald-50 transition-colors"
-            >
-              Ganti Token Acak
-            </button>
-            <p className="text-xs text-slate-400 mt-4">Bagikan token ini ke siswa agar mereka bisa mengerjakan soal Anda.</p>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'buat_ujian' && (
-        <div className="bg-white p-8 rounded-3xl border shadow-sm">
-          <div className="flex gap-4 border-b mb-8">
-            <button onClick={()=>setInputMode('upload')} className={`pb-3 font-bold ${inputMode==='upload'?'border-b-2 border-emerald-600 text-emerald-600':'text-slate-400'}`}>Upload File</button>
-            <button onClick={()=>setInputMode('manual')} className={`pb-3 font-bold ${inputMode==='manual'?'border-b-2 border-emerald-600 text-emerald-600':'text-slate-400'}`}>Input Manual</button>
-          </div>
-
-          {inputMode === 'upload' ? (
-            <div className="space-y-6">
-              <div className="border-2 border-dashed border-slate-200 p-12 rounded-3xl text-center bg-slate-50 hover:bg-slate-100 transition-colors">
-                <UploadCloud size={48} className="mx-auto text-slate-300 mb-4" />
-                <p className="font-bold text-lg">Pilih file Excel (.xlsx) atau Word (.docx)</p>
-                <input type="file" className="mt-4" onChange={()=>onShowToast('File terpilih, silakan simpan')} />
-              </div>
-              <button onClick={()=>onShowToast('Soal dari file berhasil disimpan ke Spreadsheet')} className="w-full bg-emerald-600 hover:bg-emerald-700 transition-colors text-white py-4 rounded-2xl font-bold shadow-lg">Upload & Simpan Soal</button>
-            </div>
-          ) : (
-            <ManualQuestionForm onShowToast={onShowToast} />
-          )}
-        </div>
-      )}
-
-      {activeTab === 'hasil' && (
-        <div className="bg-white p-8 rounded-3xl border shadow-sm min-h-[400px]">
-          <h2 className="text-2xl font-bold mb-4">Hasil Ujian Siswa</h2>
-          <p className="text-slate-500">Nilai dan jawaban siswa yang menggunakan token Anda akan muncul di sini.</p>
-        </div>
-      )}
-    </DashboardLayout>
-  );
-}
-
-/* --- KOMPONEN PENDUKUNG (ADMIN ACTION) --- */
-function DataMasterAction({ type, onBack, onShowToast }: any) {
-  const [isAdding, setIsAdding] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ nama:'', username:'', password:'', detail:'' });
-
-  const handleSave = async (e:any) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const res = await fetch(GAS_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({ action: 'addUser', role: type.toLowerCase(), data: form })
-      });
-      const resJson = await res.json();
-      if(resJson.status === 'success') {
-        onShowToast(`Data ${type} Berhasil disimpan!`);
-        setIsAdding(false);
-        setForm({ nama:'', username:'', password:'', detail:'' });
-      }
-    } catch(err) { onShowToast('Gagal terhubung ke GAS. Pastikan URL sudah diisi.', 'error'); }
-    finally { setLoading(false); }
-  };
-
-  if(isAdding) return (
-    <div className="max-w-2xl">
-      <div className="flex items-center gap-3 mb-8">
-        <button onClick={()=>setIsAdding(false)}><ChevronLeft/></button>
-        <h3 className="text-xl font-bold">Form Tambah {type}</h3>
-      </div>
-      <form onSubmit={handleSave} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <input type="text" required placeholder="Nama Lengkap" className="p-3 bg-slate-50 border rounded-xl" value={form.nama} onChange={e=>setForm({...form, nama:e.target.value})} />
-          <input type="text" required placeholder="Username / NIP / NIS" className="p-3 bg-slate-50 border rounded-xl" value={form.username} onChange={e=>setForm({...form, username:e.target.value})} />
-          <input type="password" required placeholder="Password" className="p-3 bg-slate-50 border rounded-xl" value={form.password} onChange={e=>setForm({...form, password:e.target.value})} />
-          <input type="text" required placeholder={type==='Guru'?'Mata Pelajaran':'Kelas'} className="p-3 bg-slate-50 border rounded-xl" value={form.detail} onChange={e=>setForm({...form, detail:e.target.value})} />
-        </div>
-        <button type="submit" disabled={loading} className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold disabled:opacity-50">
-          {loading ? 'Menyimpan...' : 'Simpan ke Spreadsheet'}
-        </button>
-      </form>
-    </div>
-  );
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <button onClick={onBack}><ChevronLeft/></button>
-          <h3 className="text-xl font-bold">Manajemen {type}</h3>
-        </div>
-        <button onClick={()=>setIsAdding(true)} className="bg-indigo-600 text-white px-5 py-2 rounded-xl flex items-center gap-2 hover:bg-indigo-700 transition-colors"><Plus size={18}/> Tambah {type}</button>
-      </div>
-      <div className="p-12 text-center border-2 border-dashed rounded-3xl text-slate-400">Data tabel akan dimuat otomatis dari Spreadsheet</div>
-    </div>
-  );
-}
-
-/* --- KOMPONEN GURU: FORM MANUAL --- */
-function ManualQuestionForm({ onShowToast }: any) {
-  const [loading, setLoading] = useState(false);
-  const [q, setQ] = useState({ pertanyaan:'', a:'', b:'', c:'', d:'', e:'', jawaban:'a' });
-
-  const handleSaveSoal = async (e:any) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const res = await fetch(GAS_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({ action: 'addQuestion', data: q })
-      });
-      const resJson = await res.json();
-      if(resJson.status === 'success') {
-        onShowToast('Soal berhasil disimpan ke Database!');
-        setQ({ pertanyaan:'', a:'', b:'', c:'', d:'', e:'', jawaban:'a' });
-      }
-    } catch(err) { onShowToast('Gagal Simpan. Pastikan URL GAS sudah diisi.', 'error'); }
-    finally { setLoading(false); }
-  };
-
-  return (
-    <form onSubmit={handleSaveSoal} className="space-y-6 max-w-3xl">
-      <textarea required placeholder="Tulis Pertanyaan..." className="w-full p-4 bg-slate-50 border rounded-2xl h-32" value={q.pertanyaan} onChange={e=>setQ({...q, pertanyaan:e.target.value})} />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-        {['a','b','c','d','e'].map(l => (
-          <div key={l} className="flex items-center gap-2 p-2 bg-slate-50 rounded-xl border focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition-all">
-            <input type="radio" name="jawaban" checked={q.jawaban===l} onChange={()=>setQ({...q, jawaban:l})} className="text-emerald-600" />
-            <span className="uppercase font-bold text-slate-400 w-4">{l}.</span>
-            <input type="text" required placeholder={`Opsi ${l.toUpperCase()}`} className="bg-transparent outline-none w-full" value={(q as any)[l]} onChange={e=>setQ({...q, [l]:e.target.value})} />
-          </div>
-        ))}
-      </div>
-      <button type="submit" disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-700 transition-colors text-white py-4 rounded-2xl font-bold shadow-lg disabled:opacity-50">
-        {loading ? 'Menyimpan...' : 'Simpan Soal Sekarang'}
-      </button>
-    </form>
-  );
-}
-
-/* --- REUSABLE COMPONENTS --- */
 function DashboardLayout({ children, title, user, onLogout, roleColor, activeTab, onTabChange, menuItems }: any) {
   return (
     <div className="min-h-screen flex bg-slate-50">
       <aside className="w-72 bg-slate-900 p-6 flex flex-col h-screen sticky top-0">
-        <div className="flex items-center gap-3 mb-10 px-2 text-white font-bold text-xl uppercase tracking-tighter">
-          <div className={`w-8 h-8 rounded-lg ${roleColor} flex items-center justify-center text-white`}>D</div>
-          Darul Ulum CBT
-        </div>
+        <div className="flex items-center gap-3 mb-10 text-white font-bold text-xl"><div className={`w-8 h-8 rounded-lg ${roleColor} flex items-center justify-center`}>D</div> CBT Darul Ulum</div>
         <nav className="flex-1 space-y-2">
-          {menuItems.map((m: any) => (
-            <div key={m.id} onClick={()=>onTabChange(m.id)} className={`flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all ${activeTab===m.id?'bg-white/10 text-white':'text-slate-400 hover:text-white'}`}>
+          {menuItems?.map((m: any) => (
+            <div key={m.id} onClick={() => onTabChange(m.id)} className={`flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all ${activeTab === m.id ? 'bg-white/10 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
               {m.icon} {m.label}
             </div>
           ))}
         </nav>
         <div className="pt-6 border-t border-white/10 mt-auto">
           <div className="flex items-center gap-3 mb-4 px-2">
-            <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold">{user?.name?.charAt(0)}</div>
+            <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold">{user?.name?.charAt(0) || 'U'}</div>
             <div className="text-white"><p className="text-sm font-bold leading-none mb-1">{user?.name}</p><p className="text-[10px] uppercase tracking-widest text-slate-400">{user?.role}</p></div>
           </div>
           <button onClick={onLogout} className="w-full py-3 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-colors flex items-center justify-center gap-2 font-bold"><LogOut size={16}/> Keluar</button>
         </div>
       </aside>
       <main className="flex-1 p-8 overflow-y-auto max-h-screen">
-        <header className="mb-10 flex justify-between items-center"><h1 className="text-3xl font-black text-slate-800">{title}</h1></header>
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>{children}</motion.div>
+        <h1 className="text-3xl font-black text-slate-800 mb-8">{title}</h1>
+        {children}
       </main>
     </div>
   );
 }
 
-function StatCard({ title, value, icon, color }: any) {
+/* --- ADMIN DASHBOARD --- */
+function AdminDashboard({ user, onLogout, onShowToast }: any) {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [users, setUsers] = useState<any[][]>([]);
+  const [formMode, setFormMode] = useState<'menu' | 'guru' | 'siswa'>('menu');
+  const [formData, setFormData] = useState({ username: '', password: '', name: '', detail: '' });
+  const [loading, setLoading] = useState(false);
+
+  const fetchUsers = () => {
+    fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'getUsers' }) })
+      .then(r => r.json()).then(d => { if(d.status === 'success') setUsers(d.users); });
+  };
+
+  useEffect(() => { fetchUsers(); }, []);
+
+  const handleAddUser = async (e: any) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await fetch(GAS_URL, {
+        method: 'POST', body: JSON.stringify({ action: 'addUser', role: formMode, payload: formData })
+      });
+      const data = await res.json();
+      if(data.status === 'success') {
+        onShowToast(`Berhasil menambah ${formMode}`);
+        setFormData({ username: '', password: '', name: '', detail: '' });
+        setFormMode('menu');
+        fetchUsers(); 
+      }
+    } catch { onShowToast('Gagal menyimpan', 'error'); }
+    setLoading(false);
+  };
+
+  const adminMenus = [
+    { id: 'dashboard', label: 'Data Pengguna', icon: <Database size={18}/> },
+    { id: 'datamaster', label: 'Tambah Pengguna', icon: <Plus size={18}/> }
+  ];
+
   return (
-    <div className={`p-6 rounded-3xl shadow-sm border border-slate-100 bg-white flex items-center gap-6`}>
-      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${color}`}>{icon}</div>
-      <div><p className="text-slate-500 text-sm font-medium">{title}</p><p className="text-3xl font-black text-slate-800">{value}</p></div>
-    </div>
+    <DashboardLayout title="Portal Admin" user={user} onLogout={onLogout} roleColor="bg-blue-600" activeTab={activeTab} onTabChange={setActiveTab} menuItems={adminMenus}>
+      {activeTab === 'dashboard' && <DataTable headers={['ID', 'Username', 'Password', 'Role', 'Nama', 'Keterangan']} data={users} />}
+      
+      {activeTab === 'datamaster' && (
+        <div className="bg-white p-8 rounded-3xl border shadow-sm max-w-2xl">
+          {formMode === 'menu' ? (
+            <div className="flex gap-4">
+              <button onClick={() => setFormMode('guru')} className="flex-1 p-6 border-2 rounded-xl text-center hover:border-blue-500 hover:bg-blue-50 transition-colors font-bold text-slate-700 hover:text-blue-600"><User className="mx-auto mb-2" size={32}/>Tambah Guru</button>
+              <button onClick={() => setFormMode('siswa')} className="flex-1 p-6 border-2 rounded-xl text-center hover:border-blue-500 hover:bg-blue-50 transition-colors font-bold text-slate-700 hover:text-blue-600"><Users className="mx-auto mb-2" size={32}/>Tambah Siswa</button>
+            </div>
+          ) : (
+            <form onSubmit={handleAddUser} className="space-y-4">
+              <div className="flex items-center gap-4 mb-6">
+                <button type="button" onClick={() => setFormMode('menu')} className="bg-slate-100 p-2 rounded-lg hover:bg-slate-200"><ChevronLeft/></button>
+                <h2 className="text-xl font-bold uppercase">Tambah {formMode}</h2>
+              </div>
+              <input required type="text" placeholder="Nama Lengkap" className="w-full p-3 border rounded-xl" onChange={e => setFormData({...formData, name: e.target.value})} />
+              <input required type="text" placeholder="Username / NIP / NIS" className="w-full p-3 border rounded-xl" onChange={e => setFormData({...formData, username: e.target.value})} />
+              <input required type="text" placeholder="Password" className="w-full p-3 border rounded-xl" onChange={e => setFormData({...formData, password: e.target.value})} />
+              <input required type="text" placeholder={formMode === 'guru' ? "Mata Pelajaran (Misal: TIK)" : "Kelas (Misal: 10A)"} className="w-full p-3 border rounded-xl" onChange={e => setFormData({...formData, detail: e.target.value})} />
+              <button disabled={loading} className="bg-blue-600 hover:bg-blue-700 transition-colors w-full text-white px-6 py-3 rounded-xl font-bold">{loading ? 'Menyimpan...' : 'Simpan Data Ke Database'}</button>
+            </form>
+          )}
+        </div>
+      )}
+    </DashboardLayout>
   );
 }
 
-/* DUMMY ENGINE & SISWA (Simplified) */
-function SiswaDashboard({ onLogout, onStartExam }: any) {
-  const [tokenInput, setTokenInput] = useState('');
+/* --- GURU DASHBOARD --- */
+function GuruDashboard({ user, onLogout, onShowToast }: any) {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [qForm, setQForm] = useState({ pertanyaan: '', a: '', b: '', c: '', d: '', e: '', jawaban: 'A' });
+  const [loading, setLoading] = useState(false);
+  const [results, setResults] = useState<any[][]>([]);
+  const [activeToken, setActiveToken] = useState('XYZ987'); // Token awal
+
+  // Fungsi membuat token acak 6 karakter
+  const generateToken = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let token = '';
+    for (let i = 0; i < 6; i++) token += chars.charAt(Math.floor(Math.random() * chars.length));
+    setActiveToken(token);
+    onShowToast(`Berhasil membuat token baru: ${token}`);
+  };
+
+  useEffect(() => {
+    fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'getResults' }) })
+      .then(r => r.json()).then(d => { if(d.status === 'success') setResults(d.results); });
+  }, []);
+
+  const handleSaveSoal = async (e: any) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'addQuestion', payload: qForm }) });
+      const data = await res.json();
+      if(data.status === 'success') {
+        onShowToast('Soal berhasil ditambahkan ke Bank Soal');
+        setQForm({ pertanyaan: '', a: '', b: '', c: '', d: '', e: '', jawaban: 'A' }); 
+      }
+    } catch { onShowToast('Gagal menyimpan soal', 'error'); }
+    setLoading(false);
+  };
+
+  // MENU BARU GURU ADA DI SINI
+  const guruMenus = [
+    { id: 'dashboard', label: 'Dashboard Utama', icon: <LayoutDashboard size={18}/> },
+    { id: 'soal', label: 'Input Manual Soal', icon: <FileText size={18}/> },
+    { id: 'upload_excel', label: 'Upload Soal Excel', icon: <UploadCloud size={18}/> },
+    { id: 'token', label: 'Token Ujian', icon: <Lock size={18}/> },
+    { id: 'hasil', label: 'Hasil Ujian', icon: <CheckSquare size={18}/> }
+  ];
 
   return (
-    <div className="max-w-md mx-auto mt-20 p-10 bg-white border rounded-3xl shadow-xl text-center">
-      <Play className="mx-auto text-emerald-500 mb-4" size={48} />
-      <h2 className="text-2xl font-bold mb-2">Masuk Kelas Ujian</h2>
-      <p className="text-slate-500 text-sm mb-8">Ketik token yang diberikan guru Anda di bawah ini.</p>
+    <DashboardLayout title="Ruang Guru" user={user} onLogout={onLogout} roleColor="bg-emerald-500" activeTab={activeTab} onTabChange={setActiveTab} menuItems={guruMenus}>
       
-      <input 
-        type="text" 
-        value={tokenInput}
-        onChange={(e) => setTokenInput(e.target.value.toUpperCase())}
-        placeholder="MASUKKAN TOKEN" 
-        maxLength={6}
-        className="w-full p-4 border-2 border-slate-200 rounded-xl mb-6 text-center font-black tracking-widest text-2xl uppercase focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 outline-none transition-all" 
-      />
-      
-      <button 
-        onClick={onStartExam} 
-        disabled={tokenInput.length < 5}
-        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-xl font-bold shadow-lg disabled:opacity-50 transition-colors"
-      >
-        Verifikasi & Mulai Ujian
-      </button>
-    </div>
+      {activeTab === 'dashboard' && (
+        <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+          <h2 className="text-2xl font-bold mb-2">Selamat Datang, Bapak/Ibu {user?.name}</h2>
+          <p className="text-slate-500">Gunakan menu di sebelah kiri untuk mengelola ujian dan melihat nilai siswa.</p>
+        </div>
+      )}
+
+      {/* TAMPILAN INPUT MANUAL */}
+      {activeTab === 'soal' && (
+        <form onSubmit={handleSaveSoal} className="bg-white p-8 rounded-3xl border shadow-sm max-w-3xl space-y-6">
+          <h2 className="text-xl font-bold flex items-center gap-2 mb-4"><FileText className="text-emerald-500"/> Buat Soal Pilihan Ganda</h2>
+          <textarea required placeholder="Tuliskan pertanyaan di sini..." className="w-full p-4 border rounded-xl h-32 outline-none focus:ring-2 focus:ring-emerald-500" value={qForm.pertanyaan} onChange={e => setQForm({...qForm, pertanyaan: e.target.value})} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {['a', 'b', 'c', 'd', 'e'].map(opt => (
+              <div key={opt} className="flex items-center gap-3 p-3 border rounded-xl focus-within:ring-2 focus-within:ring-emerald-500">
+                <span className="font-bold uppercase text-slate-400">{opt}.</span>
+                <input required type="text" placeholder={`Opsi ${opt.toUpperCase()}`} className="w-full outline-none" value={(qForm as any)[opt]} onChange={e => setQForm({...qForm, [opt]: e.target.value})} />
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border">
+            <span className="font-bold">Kunci Jawaban:</span>
+            <select className="p-2 border rounded-lg bg-white outline-none focus:ring-2 focus:ring-emerald-500" value={qForm.jawaban} onChange={e => setQForm({...qForm, jawaban: e.target.value})}>
+              <option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option>
+            </select>
+          </div>
+          <button disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-700 transition-colors text-white font-bold py-4 rounded-xl flex justify-center items-center gap-2">
+            <Save size={20} /> {loading ? 'Menyimpan ke Spreadsheet...' : 'Simpan ke Bank Soal'}
+          </button>
+        </form>
+      )}
+
+      {/* TAMPILAN BARU: UPLOAD EXCEL */}
+      {activeTab === 'upload_excel' && (
+         <div className="bg-white p-12 rounded-3xl border shadow-sm max-w-2xl text-center">
+            <UploadCloud size={64} className="mx-auto text-emerald-500 mb-6" />
+            <h2 className="text-2xl font-bold mb-2">Upload Bank Soal Massal</h2>
+            <p className="text-slate-500 mb-8">Pilih file berformat <b>.xlsx</b> untuk mengunggah puluhan soal sekaligus ke dalam sistem.</p>
+            
+            <div className="border-2 border-dashed border-emerald-200 bg-emerald-50 rounded-2xl p-8 mb-6">
+               <input type="file" accept=".xlsx, .xls" className="block w-full text-sm text-slate-500 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer" />
+            </div>
+            
+            <button onClick={() => onShowToast('Fitur pembacaan file Excel sedang dalam antrean pengembangan selanjutnya!', 'error')} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-xl w-full transition-all">
+               Proses & Simpan Excel
+            </button>
+         </div>
+      )}
+
+      {/* TAMPILAN BARU: TOKEN UJIAN */}
+      {activeTab === 'token' && (
+         <div className="bg-white p-10 rounded-3xl border shadow-sm max-w-md text-center">
+            <div className="w-20 h-20 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Lock size={40} />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-800 mb-2">Token Ujian Aktif</h2>
+            <p className="text-slate-500 mb-8">Berikan kode token 6 digit ini kepada siswa agar mereka bisa mengakses soal ujian.</p>
+            
+            <div className="text-5xl font-black tracking-widest text-indigo-600 bg-indigo-50 py-6 rounded-2xl border-2 border-dashed border-indigo-200 mb-8 uppercase shadow-inner">
+              {activeToken}
+            </div>
+            
+            <button onClick={generateToken} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 w-full rounded-xl transition-all shadow-lg flex justify-center items-center gap-2">
+              <Lock size={20}/> Acak Token Baru
+            </button>
+         </div>
+      )}
+
+      {activeTab === 'hasil' && (
+        <div>
+          <div className="mb-6"><h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><CheckSquare className="text-emerald-600"/> Rekap Nilai Siswa</h2></div>
+          <DataTable headers={['Waktu Ujian', 'ID Siswa', 'Jawaban JSON']} data={results} />
+        </div>
+      )}
+    </DashboardLayout>
   );
 }
 
-function ExamEngine({ onFinish }: any) {
+/* --- SISWA DASHBOARD --- */
+function SiswaDashboard({ user, onLogout }: any) {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-10 text-center bg-slate-50">
-      <div className="bg-white p-12 rounded-3xl shadow-lg border border-slate-100 max-w-lg w-full">
-        <Clock className="mx-auto text-indigo-500 mb-6 animate-pulse" size={64} />
-        <h1 className="text-3xl font-black text-slate-800 mb-4">Halaman Ujian Aktif</h1>
-        <p className="text-slate-500 mb-10 leading-relaxed">Simulasi mesin ujian sedang berjalan. Sistem mendeteksi aktivitas Anda.</p>
-        <button onClick={onFinish} className="w-full bg-red-500 hover:bg-red-600 transition-colors text-white px-8 py-4 rounded-xl font-bold shadow-lg shadow-red-500/30">
-          Selesai & Kumpulkan Jawaban
-        </button>
+    <DashboardLayout title="Portal Siswa" user={user} onLogout={onLogout} roleColor="bg-amber-500" activeTab="ujian" onTabChange={() => {}} menuItems={[{id:'ujian', label:'Ruang Ujian', icon:<Play size={18}/>}]}>
+      <div className="max-w-md mx-auto mt-10 p-10 bg-white border border-slate-100 rounded-[2rem] shadow-xl text-center">
+        <Play className="mx-auto text-emerald-500 mb-6" size={48} />
+        <h2 className="text-2xl font-bold mb-4 text-slate-800">Siap Ujian?</h2>
+        <p className="text-slate-500 mb-8">Masukkan token ujian yang diberikan oleh guru pengawas Anda.</p>
+        <input type="text" placeholder="MASUKKAN TOKEN" maxLength={6} className="w-full text-center text-3xl font-black tracking-widest bg-slate-50 border-2 border-slate-200 rounded-xl py-4 mb-6 uppercase focus:border-emerald-500 focus:outline-none" />
+        <button className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-emerald-500/30 transition-all">Verifikasi Token</button>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
